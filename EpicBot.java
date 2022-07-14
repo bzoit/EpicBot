@@ -3,8 +3,12 @@ import robocode.*;
 import java.awt.Color;
 import robocode.util.*;
 import java.awt.geom.*;
+import robocode.WinEvent;
 import robocode.ScannedRobotEvent;
 import robocode.AdvancedRobot;
+import robocode.*;
+import robocode.util.*;
+import java.awt.*;
 
 
 // API help : http://robocode.sourceforge.net/docs/robocode/robocode/Robot.html
@@ -14,67 +18,66 @@ import robocode.AdvancedRobot;
  */
 public class EpicBot extends AdvancedRobot {
 
-	public void run() {
-		// Initialization of the robot should be put here
+    static String enemyLog = "000000000000000000000000000000888888888888888765432100888765432101234567888765432100"; //The list where enemy lateral velocities are stored
 
-		// After trying out your robot, try uncommenting the import at the top,
-		// and the next line:
+    static final double FIREPOWER = 2; //The firepower of the bot
+    static final double BULLETVEL = 20-3*FIREPOWER; //The velocity of the bullet fired at FIREPOWER
+    static final int PATTERN_DEPTH = 40; //The length of the pattern we try to find each turn in enemyLog
+    static final double MOVEAMOUNT = 37.0; //The amount of pixels the bot will move in stop and go
+
+    static double prevEnergy; //It stores the energy of the enemy
+    static double direction = MOVEAMOUNT; //It's the direction and the movement packed together
+
+	public void run() {
 
 		setColors(Color.blue,Color.white,Color.green); // body,gun,radar
 
-		// Robot main loop
 		while(true) {
 			turnRadarRightRadians(Double.POSITIVE_INFINITY);
 		}
 	}
 
-	/**
-	 * onScannedRobot: What to do when you see another robot
-	 */
-	public void onScannedRobot(ScannedRobotEvent e) {
-		double bulletPower = Math.min(3.0,getEnergy());
-		double myX = getX();
-		double myY = getY();
-		double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
-		double enemyX = getX() + e.getDistance() * Math.sin(absoluteBearing);
-		double enemyY = getY() + e.getDistance() * Math.cos(absoluteBearing);
-		double enemyHeading = e.getHeadingRadians();
-		double oldEnemyHeading = e.getHeading();
-		double enemyHeadingChange = enemyHeading - oldEnemyHeading;
-		double enemyVelocity = e.getVelocity();
+    public void onScannedRobot(ScannedRobotEvent e){
 
-		double deltaTime = 0;
-		double battleFieldHeight = getBattleFieldHeight(), 
-        	battleFieldWidth = getBattleFieldWidth();
-		double predictedX = enemyX, predictedY = enemyY;
-		while((++deltaTime) * (20.0 - 3.0 * bulletPower) < Point2D.Double.distance(myX, myY, predictedX, predictedY)){		
-			predictedX += Math.sin(enemyHeading) * enemyVelocity;
-			predictedY += Math.cos(enemyHeading) * enemyVelocity;
-			enemyHeading += enemyHeadingChange;
-			if(	predictedX < 18.0 || predictedY < 18.0 || predictedX > battleFieldWidth - 18.0 || predictedY > battleFieldHeight - 18.0){
-				predictedX = Math.min(Math.max(18.0, predictedX), 
-		    	battleFieldWidth - 18.0);	
-				predictedY = Math.min(Math.max(18.0, predictedY), 
-		    		battleFieldHeight - 18.0);
-				break;
-			}
-		}
-		double theta = Utils.normalAbsoluteAngle(Math.atan2(predictedX - getX(), predictedY - getY()));
+   		int matchLength = PATTERN_DEPTH; 
+    	double absB;
+    	int i; 		 		    		
+    	int index;                        
 
-		setTurnRadarRightRadians(Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
-		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
-		fire(3);
-	}
+        if(prevEnergy > (prevEnergy = e.getEnergy()) ){
+        	direction = (Math.random()*100000-50000);
+            setAhead(direction);
+        }
+		
+        setTurnRightRadians((Math.cos(absB = e.getBearingRadians())));
+			
+        enemyLog = String.valueOf( (char)Math.round(e.getVelocity() * Math.sin(e.getHeadingRadians() - ( absB+=getHeadingRadians() )))).concat(enemyLog);
 
-	/**
-	 * onHitByBullet: What to do when you're hit by a bullet
-	 */
+        while((index = enemyLog.indexOf(enemyLog.substring(0, matchLength--), (i = (int)((e.getDistance())/BULLETVEL)))) < 0);
+
+        do {
+        	absB += Math.asin(((byte)enemyLog.charAt(index--))/e.getDistance());
+        } while(--i > 0);
+
+        setTurnGunRightRadians(Utils.normalRelativeAngle(absB-getGunHeadingRadians()));
+            
+        setFire(FIREPOWER);
+
+        setTurnRadarLeft(getRadarTurnRemaining());
+    }
+
 	public void onHitByBullet(HitByBulletEvent e) {
 	}
 	
-	/**
-	 * onHitWall: What to do when you hit a wall
-	 */
 	public void onHitWall(HitWallEvent e) {
+		direction = -direction;
 	}	
+	
+	public void onWin(WinEvent w) {
+		for (int i = 0; i < 150; i++) {
+			turnRight(50);
+			ahead(50);
+			turnLeft(50);
+		}
+	}
 }
