@@ -72,12 +72,5 @@ public class EpicBot extends AdvancedRobot {
 	public void onHitWall(HitWallEvent e) {
 		direction = -direction;
 	}	
-	
-	public void onWin(WinEvent w) {
-		for (int i = 0; i < 150; i++) {
-			turnRight(50);
-			ahead(50);
-			turnLeft(50);
-		}
-	}
+
 }
